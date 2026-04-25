@@ -1,83 +1,49 @@
-'use client'
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import AddRepoForm from './AddRepoForm'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+export const metadata = { title: 'Add Repository — DepPulse' }
 
-export default function AddRepositoryPage() {
-  const router = useRouter()
-  const [repoName, setRepoName] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+export default async function AddRepositoryPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
-
-    try {
-      const res = await fetch('/api/repositories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fullName: repoName.trim() }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.error ?? 'Ошибка при добавлении')
-        return
-      }
-
-      router.push('/dashboard')
-    } catch {
-      setError('Сетевая ошибка')
-    } finally {
-      setLoading(false)
-    }
-  }
+  if (!user) redirect('/login')
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-[var(--color-bg)] px-4">
-      <div className="w-full max-w-md">
-        <h1 className="text-xl font-semibold text-[var(--color-text)] mb-6">Добавить репозиторий</h1>
+    <main className="min-h-screen bg-gray-50">
+      <div className="max-w-2xl mx-auto px-4 py-12">
+        {/* Header */}
+        <div className="mb-8">
+          <a
+            href="/dashboard"
+            className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-6 transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 12H5M12 5l-7 7 7 7"/>
+            </svg>
+            Назад к Dashboard
+          </a>
+          <h1 className="text-2xl font-bold text-gray-900">Добавить репозиторий</h1>
+          <p className="mt-2 text-gray-500">
+            Укажите публичный репозиторий для сканирования уязвимостей зависимостей
+          </p>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm text-[var(--color-text-muted)] mb-1.5" htmlFor="repo">
-              Репозиторий (owner/repo)
-            </label>
-            <input
-              id="repo"
-              type="text"
-              value={repoName}
-              onChange={e => setRepoName(e.target.value)}
-              placeholder="facebook/react"
-              required
-              className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
-            />
-          </div>
+        {/* Form card */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <AddRepoForm />
+        </div>
 
-          {error && (
-            <p className="text-sm text-[var(--color-error)]">{error}</p>
-          )}
-
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="flex-1 rounded-lg border border-[var(--color-border)] px-4 py-2.5 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-surface-2)] transition-colors"
-            >
-              Отмена
-            </button>
-            <button
-              type="submit"
-              disabled={loading || !repoName.trim()}
-              className="flex-1 rounded-lg bg-[var(--color-primary)] text-white px-4 py-2.5 text-sm font-medium hover:bg-[var(--color-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {loading ? 'Добавление...' : 'Добавить'}
-            </button>
-          </div>
-        </form>
+        {/* Info block */}
+        <div className="mt-6 bg-blue-50 border border-blue-100 rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-blue-800 mb-2">Что происходит после добавления?</h3>
+          <ul className="text-sm text-blue-700 space-y-1">
+            <li>• DepPulse скачает файлы зависимостей (если публичный репо)</li>
+            <li>• Проверяет каждый пакет по базе OSV.dev</li>
+            <li>• Создаёт GitHub Issue если найдены Critical/High уязвимости</li>
+          </ul>
+        </div>
       </div>
     </main>
   )
