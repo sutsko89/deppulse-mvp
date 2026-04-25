@@ -8,32 +8,47 @@ export default async function DashboardPage() {
   const user = await getAuthUser()
   const supabase = await createClient()
 
-  // Fetch user's repositories with latest scan info
+  // Fetch repositories with latest scan (limit 1, ordered by completed_at)
   const { data: repos } = await supabase
     .from('repositories')
     .select(`
       id,
       full_name,
+      name,
+      is_private,
       last_scan_at,
-      vulnerability_scans (
-        id,
-        status,
-        vulnerabilities_count,
-        critical_count,
-        high_count,
-        scanned_at
-      )
+      last_scan_status,
+      language
     `)
     .eq('user_id', user.id)
-    .order('last_scan_at', { ascending: false })
+    .order('last_scan_at', { ascending: false, nullsFirst: false })
+
+  // Fetch latest scan per repo in one query
+  const repoIds = repos?.map(r => r.id) ?? []
+  const { data: latestScans } = repoIds.length > 0
+    ? await supabase
+        .from('vulnerability_scans')
+        .select('id, repo_id, status, total_deps, vulnerable_deps, critical_count, high_count, medium_count, low_count, completed_at')
+        .in('repo_id', repoIds)
+        .order('completed_at', { ascending: false })
+    : { data: [] }
+
+  // Map: repoId -> latestScan
+  const scanByRepo = new Map<string, NonNullable<typeof latestScans>[number]>()
+  for (const scan of latestScans ?? []) {
+    if (scan.repo_id && !scanByRepo.has(scan.repo_id)) {
+      scanByRepo.set(scan.repo_id, scan)
+    }
+  }
 
   // Aggregate stats
   const totalRepos = repos?.length ?? 0
-  const totalVulns = repos?.reduce((acc, r) => {
-    const latestScan = r.vulnerability_scans?.[0]
-    return acc + (latestScan?.vulnerabilities_count ?? 0)
-  }, 0) ?? 0
-  const criticalRepos = repos?.filter(r => (r.vulnerability_scans?.[0]?.critical_count ?? 0) > 0).length ?? 0
+  const totalVulns = Array.from(scanByRepo.values()).reduce(
+    (acc, s) => acc + (s.vulnerable_deps ?? 0), 0
+  )
+  const criticalRepos = Array.from(scanByRepo.values()).filter(
+    s => (s.critical_count ?? 0) > 0
+  ).length
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
@@ -53,7 +68,10 @@ export default async function DashboardPage() {
               {user.user_metadata?.name ?? user.email}
             </span>
             <form action="/api/auth/signout" method="POST">
-              <button type="submit" className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">
+              <button
+                type="submit"
+                className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+              >
                 Выйти
               </button>
             </form>
@@ -70,7 +88,9 @@ export default async function DashboardPage() {
           </div>
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
             <p className="text-sm text-[var(--color-text-muted)]">Уязвимостей</p>
-            <p className="mt-1 text-3xl font-semibold tabular-nums text-[var(--color-text)]">{totalVulns}</p>
+            <p className={`mt-1 text-3xl font-semibold tabular-nums ${
+              totalVulns > 0 ? 'text-[var(--color-warning)]' : 'text-[var(--color-text)]'
+            }`}>{totalVulns}</p>
           </div>
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
             <p className="text-sm text-[var(--color-text-muted)]">Критических репо</p>
@@ -80,7 +100,7 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* Repos list */}
+        {/* Repo list */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-medium text-[var(--color-text)]">Репозитории</h2>
           <Link
@@ -104,11 +124,10 @@ export default async function DashboardPage() {
         ) : (
           <div className="space-y-3">
             {repos?.map(repo => {
-              const latestScan = repo.vulnerability_scans?.[0]
-              const critical = latestScan?.critical_count ?? 0
-              const high = latestScan?.vulnerabilities_count
-                ? (latestScan.vulnerabilities_count - critical)
-                : 0
+              const scan = scanByRepo.get(repo.id)
+              const critical = scan?.critical_count ?? 0
+              const totalVulnsRepo = scan?.vulnerable_deps ?? 0
+              const isRunning = scan?.status === 'pending' || repo.last_scan_status === 'pending'
 
               return (
                 <Link
@@ -117,11 +136,21 @@ export default async function DashboardPage() {
                   className="flex items-center justify-between rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 hover:bg-[var(--color-surface-2)] transition-colors"
                 >
                   <div>
-                    <p className="font-medium text-[var(--color-text)]">{repo.full_name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-[var(--color-text)]">{repo.full_name}</p>
+                      {repo.is_private && (
+                        <span className="rounded px-1.5 py-0.5 text-[10px] bg-[var(--color-surface-offset)] text-[var(--color-text-muted)]">private</span>
+                      )}
+                      {repo.language && (
+                        <span className="rounded px-1.5 py-0.5 text-[10px] bg-[var(--color-surface-offset)] text-[var(--color-text-muted)]">{repo.language}</span>
+                      )}
+                    </div>
                     <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                      {repo.last_scan_at
-                        ? `Последний скан: ${formatDistanceToNow(new Date(repo.last_scan_at), { addSuffix: true, locale: ru })}`
-                        : 'Ещё не сканировался'}
+                      {isRunning
+                        ? '⏳ Сканирование...'
+                        : repo.last_scan_at
+                          ? `Последний скан: ${formatDistanceToNow(new Date(repo.last_scan_at), { addSuffix: true, locale: ru })}`
+                          : 'Ещё не сканировался'}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -130,15 +159,18 @@ export default async function DashboardPage() {
                         {critical} крит.
                       </span>
                     )}
-                    {latestScan?.vulnerabilities_count ? (
+                    {totalVulnsRepo > 0 ? (
                       <span className="rounded-full bg-[var(--color-surface-offset)] text-[var(--color-text-muted)] px-2.5 py-0.5 text-xs">
-                        {latestScan.vulnerabilities_count} уязв.
+                        {totalVulnsRepo} уязв.
                       </span>
-                    ) : (
+                    ) : scan ? (
                       <span className="rounded-full bg-[var(--color-success-highlight)] text-[var(--color-success)] px-2.5 py-0.5 text-xs">
-                        Чисто
+                        Чисто ✓
                       </span>
-                    )}
+                    ) : null}
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--color-text-faint)]">
+                      <path d="M9 18l6-6-6-6" />
+                    </svg>
                   </div>
                 </Link>
               )
