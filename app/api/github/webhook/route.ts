@@ -10,6 +10,12 @@ import { runScan } from '@/lib/scanner/engine'
 import { createScanIssue } from '@/lib/github/issues'
 import { createAdminClient } from '@/lib/supabase/server'
 
+type RepoRow = {
+  id: string
+  full_name: string
+  user_id: string
+}
+
 export async function POST(request: NextRequest) {
   // Read raw body for signature verification
   const rawBody = await request.text()
@@ -58,7 +64,7 @@ export async function POST(request: NextRequest) {
       .from('repositories')
       .select('id, full_name, user_id')
       .eq('full_name', repoFullName)
-      .maybeSingle()
+      .maybeSingle() as { data: RepoRow | null }
 
     if (!repo) {
       // Repo not registered in DepPulse — ignore
