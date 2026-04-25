@@ -9,7 +9,6 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 /**
  * Server client with user session (uses cookies).
- * Use in Server Components and Route Handlers.
  */
 export async function createClient() {
   const cookieStore = await cookies()
@@ -25,7 +24,7 @@ export async function createClient() {
             cookieStore.set(name, value, options)
           )
         } catch {
-          // Called from Server Component — cookies are read-only, safe to ignore
+          // Server Component — cookies are read-only
         }
       },
     },
@@ -34,10 +33,11 @@ export async function createClient() {
 
 /**
  * Admin client with service role key (bypasses RLS).
- * Use only in trusted server-side code (webhooks, cron jobs).
+ * Returns an untyped client — callers must assert types manually.
+ * Use only in trusted server-side code.
  */
 export async function createAdminClient() {
-  return createSupabaseClient<Database>(supabaseUrl, supabaseServiceKey, {
+  return createSupabaseClient(supabaseUrl, supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,

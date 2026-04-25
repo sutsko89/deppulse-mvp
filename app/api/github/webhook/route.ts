@@ -9,6 +9,7 @@ import { getInstallationToken } from '@/lib/github/app'
 import { runScan } from '@/lib/scanner/engine'
 import { createScanIssue } from '@/lib/github/issues'
 import { createAdminClient } from '@/lib/supabase/server'
+import type { Repository } from '@/lib/supabase/types'
 
 export async function POST(request: NextRequest) {
   const rawBody = await request.text()
@@ -49,11 +50,16 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createAdminClient()
 
-    const { data: repo } = await supabase
+    const { data: repo, error: repoError } = await supabase
       .from('repositories')
       .select('id, full_name, user_id')
       .eq('full_name', repoFullName)
-      .maybeSingle()
+      .maybeSingle() as unknown as { data: Pick<Repository, 'id' | 'full_name' | 'user_id'> | null; error: Error | null }
+
+    if (repoError) {
+      console.error('[webhook] DB error:', repoError)
+      return NextResponse.json({ error: 'DB error' }, { status: 500 })
+    }
 
     if (!repo) {
       return NextResponse.json({ ok: true, skipped: 'repo not registered' })
