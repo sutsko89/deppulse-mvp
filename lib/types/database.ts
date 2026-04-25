@@ -40,6 +40,8 @@ export type Database = {
         Row: {
           context: Json | null
           created_at: string | null
+          error_message: string | null
+          error_type: string | null
           id: string
           level: string
           message: string
@@ -49,6 +51,8 @@ export type Database = {
         Insert: {
           context?: Json | null
           created_at?: string | null
+          error_message?: string | null
+          error_type?: string | null
           id?: string
           level: string
           message: string
@@ -58,6 +62,8 @@ export type Database = {
         Update: {
           context?: Json | null
           created_at?: string | null
+          error_message?: string | null
+          error_type?: string | null
           id?: string
           level?: string
           message?: string
@@ -71,8 +77,10 @@ export type Database = {
           created_at: string
           error_message: string | null
           github_issue_number: number | null
+          github_issue_title: string | null
           github_issue_url: string | null
           id: string
+          is_open: boolean | null
           repo_id: string
           scan_id: string
           severity_filter: string
@@ -83,8 +91,10 @@ export type Database = {
           created_at?: string
           error_message?: string | null
           github_issue_number?: number | null
+          github_issue_title?: string | null
           github_issue_url?: string | null
           id?: string
+          is_open?: boolean | null
           repo_id: string
           scan_id: string
           severity_filter?: string
@@ -95,8 +105,10 @@ export type Database = {
           created_at?: string
           error_message?: string | null
           github_issue_number?: number | null
+          github_issue_title?: string | null
           github_issue_url?: string | null
           id?: string
+          is_open?: boolean | null
           repo_id?: string
           scan_id?: string
           severity_filter?: string
@@ -156,36 +168,48 @@ export type Database = {
       repositories: {
         Row: {
           created_at: string
+          default_branch: string | null
+          description: string | null
           full_name: string
           github_repo_id: number
           html_url: string | null
           id: string
           is_private: boolean
+          language: string | null
           last_scan_at: string | null
+          last_scan_status: string | null
           name: string
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          default_branch?: string | null
+          description?: string | null
           full_name: string
           github_repo_id: number
           html_url?: string | null
           id?: string
           is_private?: boolean
+          language?: string | null
           last_scan_at?: string | null
+          last_scan_status?: string | null
           name: string
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          default_branch?: string | null
+          description?: string | null
           full_name?: string
           github_repo_id?: number
           html_url?: string | null
           id?: string
           is_private?: boolean
+          language?: string | null
           last_scan_at?: string | null
+          last_scan_status?: string | null
           name?: string
           updated_at?: string
           user_id?: string
@@ -234,37 +258,48 @@ export type Database = {
         Row: {
           aliases: string[] | null
           created_at: string
+          cve_ids: string[] | null
           cvss_score: number | null
           details: string | null
           ecosystem: string | null
+          /** @deprecated use fixed_version */
           fix_available: boolean
+          fixed_version: string | null
           github_issue_url: string | null
           id: string
           is_resolved: boolean
           osv_id: string
+          osv_url: string | null
           package_name: string
+          package_version: string | null
           published: string | null
           repo_id: string | null
           resolved_at: string | null
+          /** @deprecated use fixed_version */
           safe_version: string | null
           scan_id: string
           severity: Database["public"]["Enums"]["severity"]
           summary: string | null
           updated_at: string
+          /** @deprecated use package_version */
           version: string | null
         }
         Insert: {
           aliases?: string[] | null
           created_at?: string
+          cve_ids?: string[] | null
           cvss_score?: number | null
           details?: string | null
           ecosystem?: string | null
           fix_available?: boolean
+          fixed_version?: string | null
           github_issue_url?: string | null
           id?: string
           is_resolved?: boolean
           osv_id: string
+          osv_url?: string | null
           package_name: string
+          package_version?: string | null
           published?: string | null
           repo_id?: string | null
           resolved_at?: string | null
@@ -278,15 +313,19 @@ export type Database = {
         Update: {
           aliases?: string[] | null
           created_at?: string
+          cve_ids?: string[] | null
           cvss_score?: number | null
           details?: string | null
           ecosystem?: string | null
           fix_available?: boolean
+          fixed_version?: string | null
           github_issue_url?: string | null
           id?: string
           is_resolved?: boolean
           osv_id?: string
+          osv_url?: string | null
           package_name?: string
+          package_version?: string | null
           published?: string | null
           repo_id?: string | null
           resolved_at?: string | null
@@ -317,45 +356,73 @@ export type Database = {
       vulnerability_scans: {
         Row: {
           ai_summary: string | null
+          commit_sha: string | null
+          completed_at: string | null
           created_at: string | null
           critical_count: number
+          /** @deprecated use total_deps */
           dependencies_count: number | null
+          error_message: string | null
           high_count: number
           id: string
           low_count: number
           medium_count: number
+          repo_id: string | null
+          /** @deprecated use repo_id */
           repository_id: string
+          /** @deprecated use completed_at */
           scanned_at: string | null
+          started_at: string | null
           status: string | null
+          total_deps: number | null
+          triggered_by: string | null
+          /** @deprecated use vulnerable_deps */
           vulnerabilities_count: number | null
+          vulnerable_deps: number | null
         }
         Insert: {
           ai_summary?: string | null
+          commit_sha?: string | null
+          completed_at?: string | null
           created_at?: string | null
           critical_count?: number
           dependencies_count?: number | null
+          error_message?: string | null
           high_count?: number
           id?: string
           low_count?: number
           medium_count?: number
+          repo_id?: string | null
           repository_id: string
           scanned_at?: string | null
+          started_at?: string | null
           status?: string | null
+          total_deps?: number | null
+          triggered_by?: string | null
           vulnerabilities_count?: number | null
+          vulnerable_deps?: number | null
         }
         Update: {
           ai_summary?: string | null
+          commit_sha?: string | null
+          completed_at?: string | null
           created_at?: string | null
           critical_count?: number
           dependencies_count?: number | null
+          error_message?: string | null
           high_count?: number
           id?: string
           low_count?: number
           medium_count?: number
+          repo_id?: string | null
           repository_id?: string
           scanned_at?: string | null
+          started_at?: string | null
           status?: string | null
+          total_deps?: number | null
+          triggered_by?: string | null
           vulnerabilities_count?: number | null
+          vulnerable_deps?: number | null
         }
         Relationships: [
           {
@@ -405,3 +472,17 @@ export const Constants = {
     },
   },
 } as const
+
+// ─── Convenience type aliases ─────────────────────────────────────────────────
+
+export type Profile = Tables<'profiles'>
+export type Repository = Tables<'repositories'>
+export type VulnerabilityScan = Tables<'vulnerability_scans'>
+export type Vulnerability = Tables<'vulnerabilities'>
+export type GithubIssueNotification = Tables<'github_issue_notifications'>
+export type UserNotification = Tables<'user_notifications'>
+export type ErrorLog = Tables<'error_logs'>
+export type AiAnalysisCache = Tables<'ai_analysis_cache'>
+
+export type SeverityLevel = Database['public']['Enums']['severity']
+export type SubscriptionTier = Database['public']['Enums']['subscription_tier']
