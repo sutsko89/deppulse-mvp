@@ -1,5 +1,6 @@
 /**
  * Scan engine: fetch lockfile from GitHub → parse → query OSV → persist to Supabase.
+ * Schema: aligned with 002_alter_schema_to_v2 migration.
  */
 
 import { Octokit } from '@octokit/rest'
@@ -12,19 +13,23 @@ import {
   type OsvVulnerability,
 } from '@/lib/osv/client'
 import { createAdminClient } from '@/lib/supabase/server'
-import type { TablesInsert } from '@/lib/types/database'
 
 const LOCKFILES = [
   'package-lock.json',
+  'yarn.lock',
   'requirements.txt',
+  'Pipfile.lock',
   'composer.lock',
   'go.sum',
+  'Cargo.lock',
 ]
 
 export interface ScanOptions {
   repositoryId: string
   repoFullName: string    // e.g. "owner/repo"
-  githubToken: string     // user's GitHub access token
+  githubToken: string     // user's GitHub access token or installation token
+  commitSha?: string      // optional commit SHA for tracking
+  triggeredBy?: string    // 'manual' | 'webhook' | 'schedule'
 }
 
 export interface ScanSummary {
@@ -45,12 +50,16 @@ export async function runScan(options: ScanOptions): Promise<ScanSummary> {
   const supabase = await createAdminClient()
   const [owner, repo] = options.repoFullName.split('/')
 
-  // Create scan record (pending)
+  // Create scan record (pending) — uses new v2 column names
   const { data: scan, error: scanError } = await supabase
     .from('vulnerability_scans')
     .insert({
-      repository_id: options.repositoryId,
+      repository_id: options.repositoryId,  // legacy column (kept for backward compat)
+      repo_id: options.repositoryId,         // new v2 column
       status: 'pending',
+      triggered_by: options.triggeredBy ?? 'manual',
+      commit_sha: options.commitSha ?? null,
+      started_at: new Date().toISOString(),
     })
     .select('id')
     .single()
@@ -94,10 +103,23 @@ export async function runScan(options: ScanOptions): Promise<ScanSummary> {
         status: 'completed',
         vulnerabilities_count: 0,
         dependencies_count: 0,
+        total_deps: 0,
+        vulnerable_deps: 0,
+        completed_at: new Date().toISOString(),
+        // legacy compat
         scanned_at: new Date().toISOString(),
       }).eq('id', scanId)
 
-      return { scanId, dependenciesCount: 0, vulnerabilitiesCount: 0, criticalCount: 0, highCount: 0, mediumCount: 0, lowCount: 0, status: 'completed' }
+      return {
+        scanId,
+        dependenciesCount: 0,
+        vulnerabilitiesCount: 0,
+        criticalCount: 0,
+        highCount: 0,
+        mediumCount: 0,
+        lowCount: 0,
+        status: 'completed',
+      }
     }
 
     // Deduplicate packages
@@ -109,14 +131,14 @@ export async function runScan(options: ScanOptions): Promise<ScanSummary> {
     const batchResult = await queryOsvBatch(uniquePackages)
 
     // Map results to vulnerabilities
-    const vulnRows: TablesInsert<'vulnerabilities'>[] = []
+    const vulnRows: Array<Record<string, unknown>> = []
     let criticalCount = 0, highCount = 0, mediumCount = 0, lowCount = 0
 
     for (let i = 0; i < uniquePackages.length; i++) {
       const pkg = uniquePackages[i]
       const vulns = batchResult.results[i]?.vulns ?? []
 
-      for (const vuln of vulns) {
+      for (const vuln of vulns as OsvVulnerability[]) {
         const cvss = extractCvssScore(vuln)
         const severity = cvssToSeverity(cvss)
         const safeVersion = extractSafeVersion(vuln, pkg.name, pkg.ecosystem)
@@ -131,6 +153,9 @@ export async function runScan(options: ScanOptions): Promise<ScanSummary> {
           repo_id: options.repositoryId,
           osv_id: vuln.id,
           package_name: pkg.name,
+          // v2 column name:
+          package_version: pkg.version,
+          // legacy column name (kept for compat with old schema):
           version: pkg.version,
           ecosystem: pkg.ecosystem,
           severity,
@@ -138,15 +163,20 @@ export async function runScan(options: ScanOptions): Promise<ScanSummary> {
           details: vuln.details ?? null,
           aliases: vuln.aliases ?? null,
           cvss_score: cvss,
+          // v2 column name:
+          fixed_version: safeVersion,
+          // legacy column names:
           fix_available: !!safeVersion,
           safe_version: safeVersion,
           published: vuln.published ?? null,
           is_resolved: false,
+          osv_url: `https://osv.dev/vulnerability/${vuln.id}`,
+          cve_ids: (vuln.aliases ?? []).filter((a: string) => a.startsWith('CVE-')),
         })
       }
     }
 
-    // Persist vulnerabilities (upsert by scan_id + osv_id + package)
+    // Persist vulnerabilities
     if (vulnRows.length > 0) {
       const { error: vulnError } = await supabase
         .from('vulnerabilities')
@@ -157,21 +187,29 @@ export async function runScan(options: ScanOptions): Promise<ScanSummary> {
       }
     }
 
-    // Update scan record
+    const completedAt = new Date().toISOString()
+
+    // Update scan record — both legacy and v2 columns
     await supabase.from('vulnerability_scans').update({
       status: 'completed',
+      // legacy columns:
       dependencies_count: uniquePackages.length,
       vulnerabilities_count: vulnRows.length,
+      scanned_at: completedAt,
+      // v2 columns:
+      total_deps: uniquePackages.length,
+      vulnerable_deps: vulnRows.length,
+      completed_at: completedAt,
       critical_count: criticalCount,
       high_count: highCount,
       medium_count: mediumCount,
       low_count: lowCount,
-      scanned_at: new Date().toISOString(),
     }).eq('id', scanId)
 
-    // Update repository last_scan_at
+    // Update repository last_scan_at + last_scan_status
     await supabase.from('repositories').update({
-      last_scan_at: new Date().toISOString(),
+      last_scan_at: completedAt,
+      last_scan_status: 'completed',
     }).eq('id', options.repositoryId)
 
     console.log(`[scan] ${options.repoFullName}: ${uniquePackages.length} deps, ${vulnRows.length} vulns (${foundLockfile})`)
@@ -189,17 +227,28 @@ export async function runScan(options: ScanOptions): Promise<ScanSummary> {
 
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
+    const completedAt = new Date().toISOString()
+
     await supabase.from('vulnerability_scans').update({
       status: 'failed',
-      scanned_at: new Date().toISOString(),
+      completed_at: completedAt,
+      scanned_at: completedAt, // legacy compat
+      error_message: message,
     }).eq('id', scanId)
 
     await supabase.from('error_logs').insert({
       level: 'error',
       message: `Scan failed: ${message}`,
       scan_id: scanId,
+      error_type: 'scan_error',
+      error_message: message,
       context: { repoFullName: options.repoFullName },
     })
+
+    // Update repo last_scan_status
+    await supabase.from('repositories').update({
+      last_scan_status: 'failed',
+    }).eq('id', options.repositoryId)
 
     return {
       scanId,
