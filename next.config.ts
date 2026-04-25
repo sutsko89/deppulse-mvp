@@ -1,18 +1,22 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  // Skip TypeScript errors during build (MVP — types checked in CI/IDE)
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  // Skip ESLint errors during build
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  experimental: {
-    serverActions: {
-      allowedOrigins: ['localhost:3000'],
-    },
+  // Pass server-only env vars to Next.js build
+  // (NEXT_PUBLIC_* are auto-exposed to the client)
+  serverExternalPackages: ['@octokit/rest', '@octokit/auth-app'],
+
+  // Supabase image domains
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'avatars.githubusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co',
+      },
+    ],
   },
 }
 

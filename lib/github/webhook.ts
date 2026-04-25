@@ -1,16 +1,18 @@
 /**
- * GitHub webhook signature verification.
- * HMAC-SHA256 using the webhook secret.
+ * Verify GitHub webhook HMAC-SHA256 signature.
  */
 
 export async function verifyWebhookSignature(
-  body: string,
+  payload: string,
   signature: string | null,
 ): Promise<boolean> {
   if (!signature) return false
 
-  const secret = process.env.GH_WEBHOOK_SECRET
-  if (!secret) throw new Error('GH_WEBHOOK_SECRET is not set')
+  const secret = process.env.GITHUB_WEBHOOK_SECRET
+  if (!secret) {
+    console.warn('[webhook] GITHUB_WEBHOOK_SECRET not set — rejecting all webhooks')
+    return false
+  }
 
   const encoder = new TextEncoder()
   const key = await crypto.subtle.importKey(
@@ -21,16 +23,17 @@ export async function verifyWebhookSignature(
     ['sign'],
   )
 
-  const mac = await crypto.subtle.sign('HMAC', key, encoder.encode(body))
-  const hex = 'sha256=' + Array.from(new Uint8Array(mac))
+  const mac = await crypto.subtle.sign('HMAC', key, encoder.encode(payload))
+  const hexMac = 'sha256=' + Array.from(new Uint8Array(mac))
     .map(b => b.toString(16).padStart(2, '0'))
     .join('')
 
-  // Constant-time comparison
-  if (hex.length !== signature.length) return false
-  let diff = 0
-  for (let i = 0; i < hex.length; i++) {
-    diff |= hex.charCodeAt(i) ^ signature.charCodeAt(i)
+  // Timing-safe comparison
+  if (hexMac.length !== signature.length) return false
+
+  let mismatch = 0
+  for (let i = 0; i < hexMac.length; i++) {
+    mismatch |= hexMac.charCodeAt(i) ^ signature.charCodeAt(i)
   }
-  return diff === 0
+  return mismatch === 0
 }

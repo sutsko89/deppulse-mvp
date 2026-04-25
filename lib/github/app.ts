@@ -1,51 +1,32 @@
 /**
  * GitHub App authentication.
- * Creates Installation Tokens using the App's private key.
- * Used for webhook-triggered scans (no user session available).
+ * Returns an installation access token for the configured installation.
  */
 
 import { createAppAuth } from '@octokit/auth-app'
-import { Octokit } from '@octokit/rest'
 
-function getAppCredentials() {
-  const appId = process.env.GH_APP_ID
-  const privateKey = process.env.GH_APP_PRIVATE_KEY
-  const installationId = process.env.GH_APP_INSTALLATION_ID
-
-  if (!appId || !privateKey || !installationId) {
-    throw new Error('Missing GitHub App credentials: GH_APP_ID, GH_APP_PRIVATE_KEY, GH_APP_INSTALLATION_ID')
-  }
-
-  return {
-    appId: Number(appId),
-    // GitHub secrets replace newlines with literal \n — restore them
-    privateKey: privateKey.replace(/\\n/g, '\n'),
-    installationId: Number(installationId),
-  }
+function requireEnv(name: string): string {
+  const val = process.env[name]
+  if (!val) throw new Error(`Missing required environment variable: ${name}`)
+  return val
 }
 
 /**
- * Get an Octokit instance authenticated as the GitHub App Installation.
- * Use this for webhook-triggered scans.
- */
-export async function getAppOctokit(): Promise<Octokit> {
-  const { appId, privateKey, installationId } = getAppCredentials()
-
-  const auth = createAppAuth({ appId, privateKey, installationId })
-  const { token } = await auth({ type: 'installation' })
-
-  return new Octokit({ auth: token })
-}
-
-/**
- * Get a raw installation token string.
- * Useful when passing the token to runScan().
+ * Returns a short-lived installation access token for the GitHub App.
+ * Token is valid for 1 hour — do not cache beyond that.
  */
 export async function getInstallationToken(): Promise<string> {
-  const { appId, privateKey, installationId } = getAppCredentials()
+  const appId = requireEnv('GITHUB_APP_ID')
+  // Private key may have literal \n from env — normalise to actual newlines
+  const privateKey = requireEnv('GITHUB_APP_PRIVATE_KEY').replace(/\\n/g, '\n')
+  const installationId = parseInt(requireEnv('GITHUB_APP_INSTALLATION_ID'), 10)
 
-  const auth = createAppAuth({ appId, privateKey, installationId })
-  const { token } = await auth({ type: 'installation' })
+  const auth = createAppAuth({
+    appId,
+    privateKey,
+    installationId,
+  })
 
-  return token
+  const result = await auth({ type: 'installation' })
+  return result.token
 }
