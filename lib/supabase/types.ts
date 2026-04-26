@@ -634,3 +634,34 @@ export type Enums<
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
   ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
   : never
+
+// ─── Convenience aliases (Row types) ────────────────────────────────────────
+export type Profile = Tables<'profiles'>
+export type Repository = Tables<'repositories'>
+export type Vulnerability = Tables<'vulnerabilities'>
+export type VulnerabilityScan = Tables<'vulnerability_scans'>
+export type GithubIssueNotification = Tables<'github_issue_notifications'>
+export type UserNotification = Tables<'user_notifications'>
+export type AiAnalysisCache = Tables<'ai_analysis_cache'>
+export type ErrorLog = Tables<'error_logs'>
+
+// ─── Convenience aliases (Insert types) ─────────────────────────────────────
+export type ProfileInsert = TablesInsert<'profiles'>
+export type RepositoryInsert = TablesInsert<'repositories'>
+export type VulnerabilityInsert = TablesInsert<'vulnerabilities'>
+export type VulnerabilityScanInsert = TablesInsert<'vulnerability_scans'>
+export type GithubIssueNotificationInsert = TablesInsert<'github_issue_notifications'>
+export type UserNotificationInsert = TablesInsert<'user_notifications'>
+
+// ─── Convenience aliases (Update types) ─────────────────────────────────────
+export type ProfileUpdate = TablesUpdate<'profiles'>
+export type RepositoryUpdate = TablesUpdate<'repositories'>
+export type VulnerabilityUpdate = TablesUpdate<'vulnerabilities'>
+export type VulnerabilityScanUpdate = TablesUpdate<'vulnerability_scans'>
+export type GithubIssueNotificationUpdate = TablesUpdate<'github_issue_notifications'>
+export type UserNotificationUpdate = TablesUpdate<'user_notifications'>
+
+// ─── Enum aliases ────────────────────────────────────────────────────────────
+export type SeverityEnum = Enums<'severity'>
+export type SeverityLevelEnum = Enums<'severity_level'>
+export type SubscriptionTierEnum = Enums<'subscription_tier'>

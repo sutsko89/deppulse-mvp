@@ -54,7 +54,8 @@ export async function POST(request: NextRequest) {
       .from('repositories')
       .select('id, full_name, user_id')
       .eq('full_name', repoFullName)
-      .maybeSingle() as unknown as { data: Pick<Repository, 'id' | 'full_name' | 'user_id'> | null; error: Error | null }
+      .returns<Pick<Repository, 'id' | 'full_name' | 'user_id'>[]>()
+      .maybeSingle()
 
     if (repoError) {
       console.error('[webhook] DB error:', repoError)
