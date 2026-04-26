@@ -17,7 +17,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "@supabase/supabase-js": "^2.69.0",
-    "@supabase/ssr": "^0.6.1",
+    "@supabase/ssr": "^0.5.2",
     "@octokit/rest": "^21.1.1",
     "@octokit/auth-app": "^7.1.4",
     "lucide-react": "^0.511.0",

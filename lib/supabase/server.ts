@@ -9,31 +9,35 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 /**
  * Server client with user session (uses cookies).
+ * Uses @supabase/ssr 0.5.x API which correctly propagates the Database generic.
  */
 export async function createClient() {
   const cookieStore = await cookies()
 
-  return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll()
+  return createServerClient<Database>(
+    supabaseUrl,
+    supabaseAnonKey,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch {
+            // Server Component — cookies are read-only, safe to ignore
+          }
+        },
       },
-      setAll(cookiesToSet) {
-        try {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          )
-        } catch {
-          // Server Component — cookies are read-only
-        }
-      },
-    },
-  })
+    }
+  )
 }
 
 /**
  * Admin client with service role key (bypasses RLS).
- * Typed with Database generic for full type safety.
  * Use only in trusted server-side code.
  */
 export async function createAdminClient() {
