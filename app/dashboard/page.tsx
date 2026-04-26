@@ -8,7 +8,6 @@ export default async function DashboardPage() {
   const user = await getAuthUser()
   const supabase = await createClient()
 
-  // Fetch repositories with latest scan (limit 1, ordered by completed_at)
   const { data: repos } = await supabase
     .from('repositories')
     .select(`
@@ -17,8 +16,7 @@ export default async function DashboardPage() {
       name,
       is_private,
       last_scan_at,
-      last_scan_status,
-      language
+      last_scan_status
     `)
     .eq('user_id', user.id)
     .order('last_scan_at', { ascending: false, nullsFirst: false })
@@ -140,9 +138,6 @@ export default async function DashboardPage() {
                       <p className="font-medium text-[var(--color-text)]">{repo.full_name}</p>
                       {repo.is_private && (
                         <span className="rounded px-1.5 py-0.5 text-[10px] bg-[var(--color-surface-offset)] text-[var(--color-text-muted)]">private</span>
-                      )}
-                      {repo.language && (
-                        <span className="rounded px-1.5 py-0.5 text-[10px] bg-[var(--color-surface-offset)] text-[var(--color-text-muted)]">{repo.language}</span>
                       )}
                     </div>
                     <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
