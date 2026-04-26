@@ -2,6 +2,9 @@
   "name": "deppulse-mvp",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -13,7 +16,7 @@
     "next": "15.3.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "@supabase/supabase-js": "^2.49.4",
+    "@supabase/supabase-js": "^2.69.0",
     "@supabase/ssr": "^0.6.1",
     "@octokit/rest": "^21.1.1",
     "@octokit/auth-app": "^7.1.4",
