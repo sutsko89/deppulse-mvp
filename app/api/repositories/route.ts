@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import type { RepositoryInsert } from '@/lib/supabase/types'
 import { z } from 'zod'
 
 const AddRepoSchema = z.object({
@@ -69,18 +70,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Репозиторий уже добавлен' }, { status: 409 })
   }
 
+  const insertData: RepositoryInsert = {
+    full_name: fullName,
+    name,
+    github_repo_id: githubRepoId,
+    user_id: user.id,
+    is_private: isPrivate,
+    html_url: htmlUrl ?? null,
+    default_branch: defaultBranch,
+    installation_id: installationId ?? null,
+  }
+
   const { data, error } = await supabase
     .from('repositories')
-    .insert({
-      full_name: fullName,
-      name,
-      github_repo_id: githubRepoId,
-      user_id: user.id,
-      is_private: isPrivate,
-      html_url: htmlUrl,
-      default_branch: defaultBranch,
-      installation_id: installationId,
-    })
+    .insert(insertData)
     .select('id, full_name, name')
     .single()
 

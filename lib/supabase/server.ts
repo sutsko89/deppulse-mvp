@@ -33,11 +33,11 @@ export async function createClient() {
 
 /**
  * Admin client with service role key (bypasses RLS).
- * Returns an untyped client — callers must assert types manually.
+ * Typed with Database generic for full type safety.
  * Use only in trusted server-side code.
  */
 export async function createAdminClient() {
-  return createSupabaseClient(supabaseUrl, supabaseServiceKey, {
+  return createSupabaseClient<Database>(supabaseUrl, supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
