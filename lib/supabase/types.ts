@@ -10,9 +10,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   public: {
     Tables: {
       ai_analysis_cache: {
@@ -89,7 +86,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "repositories"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       github_issue_notifications: {
@@ -158,7 +155,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vulnerability_scans"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       profiles: {
@@ -280,7 +277,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       user_notifications: {
@@ -427,7 +424,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "repositories"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       vulnerability_scans: {
@@ -511,7 +508,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "repositories"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
     }
@@ -519,7 +516,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      cleanup_old_error_logs: { Args: never; Returns: undefined }
+      cleanup_old_error_logs: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       get_subscription_limits: {
         Args: { tier: Database["public"]["Enums"]["subscription_tier"] }
         Returns: Json
@@ -536,24 +536,21 @@ export type Database = {
   }
 }
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+type DefaultSchema = Database[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof DatabaseWithoutInternals },
+    | { schema: keyof Database },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof Database
   }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
@@ -571,16 +568,14 @@ export type Tables<
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
+    | { schema: keyof Database },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof Database
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
@@ -596,16 +591,14 @@ export type TablesInsert<
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
+    | { schema: keyof Database },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof Database
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
@@ -621,21 +614,19 @@ export type TablesUpdate<
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
+    | { schema: keyof Database },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof Database
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
+  ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
   ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
   : never
 
-// ─── Convenience aliases (Row types) ────────────────────────────────────────
+// ─── Convenience aliases (Row types) ───────────────────────────────────────
 export type Profile = Tables<'profiles'>
 export type Repository = Tables<'repositories'>
 export type Vulnerability = Tables<'vulnerabilities'>
@@ -645,7 +636,7 @@ export type UserNotification = Tables<'user_notifications'>
 export type AiAnalysisCache = Tables<'ai_analysis_cache'>
 export type ErrorLog = Tables<'error_logs'>
 
-// ─── Convenience aliases (Insert types) ─────────────────────────────────────
+// ─── Convenience aliases (Insert types) ────────────────────────────────────
 export type ProfileInsert = TablesInsert<'profiles'>
 export type RepositoryInsert = TablesInsert<'repositories'>
 export type VulnerabilityInsert = TablesInsert<'vulnerabilities'>
@@ -653,7 +644,7 @@ export type VulnerabilityScanInsert = TablesInsert<'vulnerability_scans'>
 export type GithubIssueNotificationInsert = TablesInsert<'github_issue_notifications'>
 export type UserNotificationInsert = TablesInsert<'user_notifications'>
 
-// ─── Convenience aliases (Update types) ─────────────────────────────────────
+// ─── Convenience aliases (Update types) ────────────────────────────────────
 export type ProfileUpdate = TablesUpdate<'profiles'>
 export type RepositoryUpdate = TablesUpdate<'repositories'>
 export type VulnerabilityUpdate = TablesUpdate<'vulnerabilities'>
@@ -661,7 +652,7 @@ export type VulnerabilityScanUpdate = TablesUpdate<'vulnerability_scans'>
 export type GithubIssueNotificationUpdate = TablesUpdate<'github_issue_notifications'>
 export type UserNotificationUpdate = TablesUpdate<'user_notifications'>
 
-// ─── Enum aliases ────────────────────────────────────────────────────────────
+// ─── Enum aliases ───────────────────────────────────────────────────────────
 export type SeverityEnum = Enums<'severity'>
 export type SeverityLevelEnum = Enums<'severity_level'>
 export type SubscriptionTierEnum = Enums<'subscription_tier'>
