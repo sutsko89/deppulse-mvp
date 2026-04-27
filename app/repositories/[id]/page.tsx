@@ -21,10 +21,10 @@ export default async function RepositoryPage({ params }: { params: Promise<{ id:
   const user = await getAuthUser()
   const supabase = await createClient()
 
-  // Fetch repository
+  // Fetch repository — only columns that exist in the schema
   const { data: repo } = await supabase
     .from('repositories')
-    .select('id, full_name, name, is_private, language, html_url, last_scan_at, last_scan_status, description')
+    .select('id, full_name, name, is_private, html_url, last_scan_at, last_scan_status')
     .eq('id', id)
     .eq('user_id', user.id)
     .single()
@@ -94,13 +94,7 @@ export default async function RepositoryPage({ params }: { params: Promise<{ id:
               {repo.is_private && (
                 <span className="rounded px-1.5 py-0.5 text-[10px] bg-[var(--color-surface-offset)] text-[var(--color-text-muted)]">private</span>
               )}
-              {repo.language && (
-                <span className="rounded px-1.5 py-0.5 text-[10px] bg-[var(--color-surface-offset)] text-[var(--color-text-muted)]">{repo.language}</span>
-              )}
             </div>
-            {repo.description && (
-              <p className="mt-1 text-sm text-[var(--color-text-muted)]">{repo.description}</p>
-            )}
             <div className="mt-1 flex items-center gap-3">
               {repo.html_url && (
                 <a
