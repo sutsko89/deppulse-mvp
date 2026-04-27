@@ -13,6 +13,9 @@ import {
   type OsvVulnerability,
 } from '@/lib/osv/client'
 import { createAdminClient } from '@/lib/supabase/server'
+import type { Database } from '@/lib/supabase/types'
+
+type VulnInsert = Database['public']['Tables']['vulnerabilities']['Insert']
 
 const LOCKFILES = [
   'package-lock.json',
@@ -106,7 +109,6 @@ export async function runScan(options: ScanOptions): Promise<ScanSummary> {
         total_deps: 0,
         vulnerable_deps: 0,
         completed_at: new Date().toISOString(),
-        // legacy compat
         scanned_at: new Date().toISOString(),
       }).eq('id', scanId)
 
@@ -130,8 +132,8 @@ export async function runScan(options: ScanOptions): Promise<ScanSummary> {
     // Query OSV for all packages
     const batchResult = await queryOsvBatch(uniquePackages)
 
-    // Map results to vulnerabilities
-    const vulnRows: Array<Record<string, unknown>> = []
+    // Build typed vulnerability rows
+    const vulnRows: VulnInsert[] = []
     let criticalCount = 0, highCount = 0, mediumCount = 0, lowCount = 0
 
     for (let i = 0; i < uniquePackages.length; i++) {
@@ -153,9 +155,7 @@ export async function runScan(options: ScanOptions): Promise<ScanSummary> {
           repo_id: options.repositoryId,
           osv_id: vuln.id,
           package_name: pkg.name,
-          // v2 column name:
           package_version: pkg.version,
-          // legacy column name (kept for compat with old schema):
           version: pkg.version,
           ecosystem: pkg.ecosystem,
           severity,
@@ -163,9 +163,7 @@ export async function runScan(options: ScanOptions): Promise<ScanSummary> {
           details: vuln.details ?? null,
           aliases: vuln.aliases ?? null,
           cvss_score: cvss,
-          // v2 column name:
           fixed_version: safeVersion,
-          // legacy column names:
           fix_available: !!safeVersion,
           safe_version: safeVersion,
           published: vuln.published ?? null,
@@ -192,11 +190,9 @@ export async function runScan(options: ScanOptions): Promise<ScanSummary> {
     // Update scan record — both legacy and v2 columns
     await supabase.from('vulnerability_scans').update({
       status: 'completed',
-      // legacy columns:
       dependencies_count: uniquePackages.length,
       vulnerabilities_count: vulnRows.length,
       scanned_at: completedAt,
-      // v2 columns:
       total_deps: uniquePackages.length,
       vulnerable_deps: vulnRows.length,
       completed_at: completedAt,
@@ -232,7 +228,7 @@ export async function runScan(options: ScanOptions): Promise<ScanSummary> {
     await supabase.from('vulnerability_scans').update({
       status: 'failed',
       completed_at: completedAt,
-      scanned_at: completedAt, // legacy compat
+      scanned_at: completedAt,
       error_message: message,
     }).eq('id', scanId)
 
@@ -245,7 +241,6 @@ export async function runScan(options: ScanOptions): Promise<ScanSummary> {
       context: { repoFullName: options.repoFullName },
     })
 
-    // Update repo last_scan_status
     await supabase.from('repositories').update({
       last_scan_status: 'failed',
     }).eq('id', options.repositoryId)
